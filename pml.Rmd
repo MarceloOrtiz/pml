@@ -1,0 +1,100 @@
+---
+title: "Practical Machine Learning"
+author: "Marcelo"
+date: "Wednesday, October 22, 2014"
+output: html_document
+---
+
+##Introduction
+
+For this assignment we took data from Groupware. This data consists in the results of different sensor measures positioned in different parts of a group of persons. This persons were asked to do an excercise in different manners and categorized each excercise as a "classe" assigned as a letter from "A" to "E". The goal of this assignment is to develop a model able to predict the kind of "classe" with the best accuracy possible.
+
+##Getting and Cleaning Data
+
+The first step is to extract the data. This can be done directly from the website or downloading manually and then into r.
+
+```{r}
+##URL <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+##download.file(URL, "pml-training.csv")
+data <- read.csv("pml-training.csv")
+```
+
+The next step is to explore the data. If we take a close look we will notice that there are 160 columns and some have alot of missing values. This can be done using the head function(I hashtagged the function because it has many columns). I took the decision to eliminate some columns because they give me trouble in training my model and the information I have is sufficient. The data is now filtered with the columns that have the complete information.
+
+I also decided to eliminate the first 7 columns wich include some variables that don?t make sense to the model like row, time, window and, person. I considered that the exercise should not depend on these variables and left only the sensor movements. We end up with 49 variables.
+
+```{r}
+##head(data)
+ncol(data)
+nrow(data)
+data_train <- data[,c("roll_belt","pitch_belt","yaw_belt","total_accel_belt","gyros_belt_x","gyros_belt_y","gyros_belt_z",
+                      "accel_belt_y","accel_belt_z",  "magnet_belt_x","magnet_belt_y","magnet_belt_z","roll_arm","pitch_arm",
+                      "yaw_arm","total_accel_arm","gyros_arm_x","gyros_arm_y","gyros_arm_z","accel_arm_y","accel_arm_z",
+                      "magnet_arm_x","magnet_arm_y","magnet_arm_z","roll_dumbbell","pitch_dumbbell","yaw_dumbbell",
+                      "total_accel_dumbbell","gyros_dumbbell_x","gyros_dumbbell_y","gyros_dumbbell_z","accel_dumbbell_y",
+                      "accel_dumbbell_z","magnet_dumbbell_x","magnet_dumbbell_y","magnet_dumbbell_z","roll_forearm",
+                      "pitch_forearm","yaw_forearm","total_accel_forearm","gyros_forearm_x","gyros_forearm_y","gyros_forearm_z",
+                      "accel_forearm_y","accel_forearm_z","magnet_forearm_x","magnet_forearm_y","magnet_forearm_z","classe")]
+```
+
+The next step is to make a data partition. We need a training data set and a testing data set to validate my model. For this I will load the caret package to use the "createDataPartition" function. I splitted the data in 70% for training and 30% for testing by the "classe" variable. This should be more than enough since we have more than 19000 rows in the original data set.
+
+```{r}
+library(caret)
+inTrain  <- createDataPartition(y=data_train$classe, p= 0.7, list=FALSE)
+training <- data_train[inTrain,]
+testing <- data_train[-inTrain,]
+```
+
+##Training file: "pml-training.csv"
+
+The next step is to choose the correct model. In this case we can go for random forests for various reasons. First because we are trying to predict a categorical variable. Second because we are searching for high accuracy and random forests are very accurate. At last, because we have many variables and random forests deals good with this.
+
+Random forest is a machine learning algorithm that uses cross validation, this means that the model takes subsamples within the training dataset to train and test to give the best result. Random forest makes trees and averages the trees to get a very accurate prediction. 
+
+To apply our model first we load the "randomForest" package. We will use the "randomForest" package instead of the "caret" because it is easier to adjust parameters. We will then set the seed so that our model is reproducible. As we apply the random forest function we set to use all the parameters to predict the class and we set the tree at 500 to avoid long computing time.
+
+```{r}
+library(randomForest)
+set.seed(111)
+rf <- randomForest(classe ~ ., data= training, ntree=500)
+print(rf)
+```
+
+At this point our model seems good. We perceive an error rate of 0.5% inside our training data. This still does not ensures a good model because the model may be overfitting. We believe that our model must be a good one, that the error rate must be similar as the train data, and expect it to work well because we have a large amount of data but still the only way to know for sure if our model is good is testing it
+
+##Testing file: "pml-training.csv"
+
+We will then test our model with the test set that we defined as the 30% of the original data. We predict using our model and the test set. After this we apply de confusion matrix to check the accuracy.
+
+```{r}
+library(caret)
+pred <- predict(rf,testing)
+confusionMatrix(testing$classe,pred)
+```
+
+We discovered that our model actually works and it does it pretty well. We have an accuracy of over 99% with this we realized that our beliefs of the small error rate were correct. We can also notice in the confusion matrix how almost all the classes predicted are correct.
+
+At last, we read a new data set from the web that consists of 20 rows, the testing set. We filter with the columns that we used in our prediction model.
+
+##Predicting file: "pml-testing.csv"
+
+```{r}
+##URL <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+##download.file(URL, "pml-testing.csv")
+data_test <- read.csv("pml-testing.csv")
+test <- data_test[,c("roll_belt","pitch_belt","yaw_belt","total_accel_belt","gyros_belt_x","gyros_belt_y","gyros_belt_z",
+                      "accel_belt_y","accel_belt_z","magnet_belt_x","magnet_belt_y","magnet_belt_z","roll_arm","pitch_arm",
+                     "yaw_arm","total_accel_arm","gyros_arm_x","gyros_arm_y","gyros_arm_z","accel_arm_y","accel_arm_z",
+                     "magnet_arm_x","magnet_arm_y","magnet_arm_z","roll_dumbbell","pitch_dumbbell","yaw_dumbbell",
+                     "total_accel_dumbbell","gyros_dumbbell_x","gyros_dumbbell_y","gyros_dumbbell_z","accel_dumbbell_y",
+                     "accel_dumbbell_z","magnet_dumbbell_x","magnet_dumbbell_y","magnet_dumbbell_z","roll_forearm",
+                     "pitch_forearm","yaw_forearm","total_accel_forearm","gyros_forearm_x","gyros_forearm_y","gyros_forearm_z",
+                     "accel_forearm_y","accel_forearm_z","magnet_forearm_x","magnet_forearm_y","magnet_forearm_z")]
+pred2 <- predict(rf,test)
+pred2
+```
+
+We end up at last with a vector of 20 predictions, we don??t know the real classe because it doesn?t come with the data set but we know it is very likely that our results are correct we have previousle proven that our model is extremely accurate because of our previous test with the data partition.
+
+With this we conclude that machine learning is a very powerfull tool and that the random forest algoritm can give us a very accurate result.
